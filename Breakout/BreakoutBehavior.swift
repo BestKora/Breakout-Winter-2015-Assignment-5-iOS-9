@@ -40,20 +40,23 @@ class BreakoutBehavior: UIDynamicBehavior, UICollisionBehaviorDelegate {
         lazyCollider.translatesReferenceBoundsIntoBoundary = false
         lazyCollider.collisionDelegate = self
         lazyCollider.action = { [unowned self] in
+            
             for ball in self.balls {
-                if !CGRectIntersectsRect(self.dynamicAnimator!.referenceView!.bounds, ball.frame) {
+                if !CGRectIntersectsRect(self.dynamicAnimator!.referenceView!.bounds, ball.frame){
                     self.breakoutCollisionDelegate?.ballLeftPlayingField( ball as BallView)
                 }
-                self.ballBehavior.limitLinearVelocity(Constants.Ball.MinVelocity, max: Constants.Ball.MaxVelocity, forItem: ball as BallView)
+                
+                self.ballBehavior.limitLinearVelocity(Constants.Ball.MinVelocity,
+                                                 max: Constants.Ball.MaxVelocity,
+                                             forItem: ball as BallView)
             }
         }
-        
         return lazyCollider
         }()
     
     // MARK: - ballBehavior
     
-    private lazy var ballBehavior: UIDynamicItemBehavior = {
+   lazy var ballBehavior: UIDynamicItemBehavior = {
         let lazyBallBehavior = UIDynamicItemBehavior()
         lazyBallBehavior.allowsRotation = false
         lazyBallBehavior.elasticity = 1.0
@@ -88,10 +91,15 @@ class BreakoutBehavior: UIDynamicBehavior, UICollisionBehaviorDelegate {
         collider.removeBoundaryWithIdentifier(identifier)
     }
     
-    func collisionBehavior(behavior: UICollisionBehavior, beganContactForItem item: UIDynamicItem, withBoundaryIdentifier boundaryId: NSCopying?, atPoint p: CGPoint) {
+     // MARK: - COLLISION BEHAVIOR
+    
+    func collisionBehavior(behavior: UICollisionBehavior, beganContactForItem item: UIDynamicItem,
+                                                 withBoundaryIdentifier boundaryId: NSCopying?,
+                                                                         atPoint p: CGPoint) {
         if let brickIndex = boundaryId as? Int {
             if let ball = item as? BallView {
-                self.breakoutCollisionDelegate?.ballHitBrick(behavior, ball: ball, brickIndex: brickIndex)
+                self.breakoutCollisionDelegate?.ballHitBrick(behavior, ball: ball,
+                                                                 brickIndex: brickIndex)
             }
         }
     }
@@ -148,10 +156,15 @@ class BreakoutBehavior: UIDynamicBehavior, UICollisionBehaviorDelegate {
         
         addChildBehavior(pushBehavior)
     }
+    
+    func linearVelocityBall (item: UIDynamicItem) -> CGPoint {
+        return ballBehavior.linearVelocityForItem(item)}
 }
 // MARK: - LINEAR VELOCITY
 
+
 private extension UIDynamicItemBehavior {
+    
     func limitLinearVelocity(min: CGFloat, max: CGFloat, forItem item: UIDynamicItem) {
         assert(min < max, "min < max")
         let itemVelocity = linearVelocityForItem(item)

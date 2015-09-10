@@ -75,12 +75,16 @@ class BreakoutView: UIView {
         
         resetPaddlePosition()
         resetBricks()
-        // Если необходимо, помещаем ball обратно в breakoutView после вращения
+        // Помещаем balls обратно в breakoutView после вращения со скоростью вверх
         for ball in balls {
-            if !CGRectContainsRect(self.bounds, ball.frame) {
-                placeBallInCenter(ball)
-                animator.updateItemUsingCurrentState(ball)
+            let linVeloc = behavior.ballBehavior.linearVelocityForItem(ball)
+            if linVeloc.y > CGFloat (0) {
+
+                behavior.ballBehavior.addLinearVelocity(CGPoint(x: -linVeloc.x , y: -linVeloc.y ), forItem: ball)
+                behavior.ballBehavior.addLinearVelocity(CGPoint(x: linVeloc.x, y: -linVeloc.y ), forItem: ball)
+ 
             }
+                placeBallInCenter(ball)
         }
     }
     
@@ -95,10 +99,12 @@ class BreakoutView: UIView {
     
     func addBall() {
         let ball = BallView(frame: CGRect(origin: CGPoint(x: paddle.center.x,
-            y: paddle.frame.minY - Constants.BallSize.height),
-            size: Constants.BallSize))
+                                y: paddle.frame.minY - Constants.BallSize.height),
+                             size: Constants.BallSize))
         self.behavior.addBall(ball)
-        behavior.launchBall(ball, magnitude: launchSpeed, minAngle: Constants.minBallLaunchAngle, maxAngle: Constants.maxBallLaunchAngle)
+        behavior.launchBall(ball, magnitude: launchSpeed,
+                                   minAngle: Constants.minBallLaunchAngle,
+                                   maxAngle: Constants.maxBallLaunchAngle)
     }
     
     func removeBall(ball: BallView){
@@ -116,7 +122,10 @@ class BreakoutView: UIView {
     }
     
     private func placeBallInCenter(ball: UIView) {
-        ball.center = self.center
+ 
+        ball.center = CGPoint(x: self.paddle.center.x,
+                              y: self.paddle.center.y - paddle.bounds.height * 2)
+        animator.updateItemUsingCurrentState(ball)
     }
     
     var ballVelocity: [CGPoint]
@@ -259,8 +268,10 @@ class BreakoutView: UIView {
     struct Constants {
         static let selfBoundaryId = "selfBoundary"
         static let paddleBoundaryId = "paddleBoundary"
+      
         static let BallSize = CGSize(width: 20, height: 20)
         static let BallSpacing: CGFloat = 3
+     //   static let BallMinVelocity = CGFloat(100.0)
         
         static let PaddleBottomMargin: CGFloat = 10.0
         static let PaddleHeight: Int = 15

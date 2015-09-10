@@ -55,7 +55,8 @@ class BreakoutViewController: UIViewController, BreakoutCollisionBehaviorDelegat
     override func viewWillAppear(animated: Bool) {
         super.viewWillAppear(animated)
         loadSettings()
-        // Restart balls when tabbing back to Breakout game
+        
+        //  Restart мячиков при возвращени на закладку Breakout игры
         breakoutView.ballVelocity = ballVelocity
         
     }
@@ -63,7 +64,8 @@ class BreakoutViewController: UIViewController, BreakoutCollisionBehaviorDelegat
     override func viewWillDisappear(animated: Bool) {
         super.viewWillDisappear(animated)
         AppDelegate.Motion.Manager.stopAccelerometerUpdates()
-        // Stop balls
+        
+        // Останавливаем мячики
          ballVelocity = breakoutView.ballVelocity
     }
     
