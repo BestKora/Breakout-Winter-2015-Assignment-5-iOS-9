@@ -9,38 +9,23 @@
 import UIKit
 class BreakoutView: UIView {
 
-  struct Constants {
-        static let selfBoundaryId = "selfBoundary"
-        static let paddleBoundaryId = "paddleBoundary"
-        static let BallSize = CGSize(width: 20, height: 20)
-        static let BallSpacing: CGFloat = 3
-
-        static let PaddleBottomMargin: CGFloat = 10.0
-        static let PaddleHeight: Int = 15
-        static let PaddleColor = UIColor.whiteColor()
-        static let BrickHeight: CGFloat = 20.0
-        static let BrickSpacing: CGFloat = 5.0
-        static let BricksTopSpacing: CGFloat = 20.0
-        static let BrickSideSpacing: CGFloat = 10.0
-    }
     
- lazy var animator: UIDynamicAnimator = { UIDynamicAnimator(referenceView: self) }()
+    lazy var animator: UIDynamicAnimator = {
+        UIDynamicAnimator(referenceView: self)
+        }()
+    
     var behavior = BreakoutBehavior()
     
-    var balls = [BallView]()
+    var balls: [BallView]  {return self.behavior.balls}
     var bricks =  [Int:BrickView]()
     
     lazy var paddle: PaddleView = {
-        let width = self.bounds.size.width / 100.0 * CGFloat(self.paddleWidthPercentage) //CGFloat(Settings().paddleWidth)
-        let paddleSize = CGSize(width: width, height: CGFloat(Constants.PaddleHeight))
-
-        let frame = CGRect(origin: CGPoint(x: -1, y: -1), size: paddleSize )
-        let paddle = PaddleView(frame: frame)
-        paddle.backgroundColor = Constants.PaddleColor
-        return paddle;
+        let paddle = PaddleView(frame: CGRect(origin: CGPointZero,
+            size: self.paddleSize))
+        self.addSubview(paddle)
+        return paddle
         }()
     
-    var columns: Int?
     var level :[[Int]]? {
         didSet {
             if let newLevel = level ,let oldLevel = oldValue{
@@ -51,88 +36,115 @@ class BreakoutView: UIView {
         }
     }
     
+    var paddleWidthPercentage :Int = Constants.PaddleWidthPercentage {
+        didSet{
+            if  paddleWidthPercentage == oldValue{ return}
+            resetPaddleInCenter()
+        }
+    }
+    
+    var launchSpeedModifier: Float = 1.0 {
+        didSet{
+            launchSpeed = Constants.minLaunchSpeed +
+                (Constants.maxLaunchSpeed - Constants.minLaunchSpeed) * CGFloat(launchSpeedModifier)
+        }
+    }
+    
+    private var launchSpeed:CGFloat = Constants.minLaunchSpeed
+    private var columns: Int?
+    
     // MARK: - LIFE CYCLE
     
     func initialize() {
+        
         self.backgroundColor = UIColor.blackColor()
         animator.addBehavior(behavior)
-     }
-
-
+        
+    }
+    
+    
     override func layoutSubviews() {
         super.layoutSubviews()
-             resetLayout()
+        resetPaddlePosition()
     }
-
-    func resetLayout()
-    {
+    
+    func resetLayout() {
         var gameBounds = self.bounds
         gameBounds.size.height *= 2.0
         behavior.addBoundary(UIBezierPath(rect: gameBounds), named: Constants.selfBoundaryId)
         
         resetPaddlePosition()
-          // If needed put ball back inside breakoutView after rotation
+        resetBricks()
+        // Если необходимо, помещаем ball обратно в breakoutView после вращения
         for ball in balls {
-            if !CGRectContainsRect(gameBounds, ball.frame) {
-                placeBall(ball)
+            if !CGRectContainsRect(self.bounds, ball.frame) {
+                placeBallInCenter(ball)
                 animator.updateItemUsingCurrentState(ball)
             }
         }
     }
-
     
-    // Remove all subviews
-    func clearView() {
-        for subView in subviews {
-                subView.removeFromSuperview()
-        }
-    }
-
-    func reset()
-    {
-        // reset behavior
-        clearView()
-        behavior.removeAllBoundaries();
-        behavior.removeAllBalls()
-        
-        // reset vars
-        balls = [BallView]()
-        bricks = [Int:BrickView]()
+    func reset(){
+        removeBricks()
+        removeAllBalls()
         createBricks()
-        if !(self.subviews ).contains(paddle)  {
-            self.addSubview(paddle)
-        }
-        resetPaddlePosition()
+        resetPaddleInCenter()
     }
     
     // MARK: - BALLS
-  
+    
     func addBall() {
-        let ball = BallView(frame: CGRect(origin: CGPoint(x: paddle.center.x, y: paddle.frame.minY - Constants.BallSize.height), size: Constants.BallSize))
-        balls.append(ball)
+        let ball = BallView(frame: CGRect(origin: CGPoint(x: paddle.center.x,
+            y: paddle.frame.minY - Constants.BallSize.height),
+            size: Constants.BallSize))
         self.behavior.addBall(ball)
+        behavior.launchBall(ball, magnitude: launchSpeed, minAngle: Constants.minBallLaunchAngle, maxAngle: Constants.maxBallLaunchAngle)
     }
     
     func removeBall(ball: BallView){
         self.behavior.removeBall(ball)
-        if let index = balls.indexOf(ball) {
-            balls.removeAtIndex(index)
+    }
+    
+    func removeAllBalls(){
+        behavior.removeAllBalls()
+    }
+    
+    func pushBalls(){
+        for ball in balls {
+            behavior.launchBall(ball, magnitude: Constants.pushSpeed)
         }
     }
     
-    private func placeBall(ball: UIView) {
+    private func placeBallInCenter(ball: UIView) {
         ball.center = self.center
     }
     
-
-    // MARK: - BRICKS
-
+    var ballVelocity: [CGPoint]
+        {
+        get {
+            var ballVelocityLoc = [CGPoint]()
+            for ball in balls {
+                ballVelocityLoc.append(behavior.stopBall(ball))
+            }
+            return ballVelocityLoc
+        }
+        set {
+            var ballVelocityLoc = newValue as [CGPoint]
+            if !newValue.isEmpty {
+                for i in 0..<balls.count {
+                    behavior.startBall(behavior.balls[i], velocity: ballVelocityLoc[i])
+                }
+            }
+        }
+    }
     
-    func createBricks() {
+    // MARK: - BRICKS
+    
+    private func createBricks() {
         if let arrangement = level {
             
-            if arrangement.count == 0 { return }    // no rows
-            if arrangement[0].count == 0 { return } // no columns
+            if arrangement.count == 0 { return }    // no строк
+            if arrangement[0].count == 0 { return } // no столбцов
             
             let rows = arrangement.count
             let columns = arrangement[0].count
@@ -152,7 +164,7 @@ class BreakoutView: UIView {
         }
     }
     
-    func createBrick(width: CGFloat, x: CGFloat, y: CGFloat, hue: CGFloat) {
+    private func createBrick(width: CGFloat, x: CGFloat, y: CGFloat, hue: CGFloat) {
         var frame = CGRect(origin: CGPoint(x: x, y: y), size: CGSize(width: width, height: Constants.BrickHeight))
         frame = CGRectInset(frame, Constants.BrickSpacing, 0)
         
@@ -162,7 +174,7 @@ class BreakoutView: UIView {
         addSubview(brick)
         behavior.addBoundary( UIBezierPath(roundedRect: brick.frame, cornerRadius: brick.layer.cornerRadius), named: (bricks.count - 1) )
     }
-
+    
     
     func removeBrick(brickIndex: Int) {
         behavior.removeBoundary(brickIndex)
@@ -182,23 +194,23 @@ class BreakoutView: UIView {
         }
     }
     
-    func removeBrickWithoutAnimation(brickIndex: Int) {
+    private func removeBrickWithoutAnimation(brickIndex: Int) {
         behavior.removeBoundary(brickIndex)
         
         if let brick = bricks[brickIndex] {
-                brick.removeFromSuperview()
-                bricks.removeValueForKey(brickIndex)
+            brick.removeFromSuperview()
+            bricks.removeValueForKey(brickIndex)
         }
     }
     
-    func resetBricks(){
+    private func resetBricks(){
         let activeBricksSet = Set(bricks.keys)
         removeBricks()
         createBricks()
         for brick in bricks {
             let index = brick.0
-             if  !activeBricksSet.contains(index) {
-                 removeBrickWithoutAnimation(brick.0)
+            if  !activeBricksSet.contains(index) {
+                removeBrickWithoutAnimation(brick.0)
             }
         }
     }
@@ -211,44 +223,61 @@ class BreakoutView: UIView {
     }
     
     // MARK: - PADDLE
-
- 
-    var paddleWidthPercentage = 33 {
-        didSet{
-            paddle.bounds.size.width = self.bounds.size.width / 100.0 * CGFloat(paddleWidthPercentage)
-         }
-    }
     
     private var paddleSize : CGSize {
         let width = self.bounds.size.width / 100.0 * CGFloat(paddleWidthPercentage)
         return CGSize(width: width, height: CGFloat(Constants.PaddleHeight))
     }
-
+    
     func translatePaddle(translation: CGPoint) {
         var newFrame = paddle.frame
-        newFrame.origin.x = max( min(newFrame.origin.x + translation.x, self.bounds.maxX - paddle.bounds.size.width), 0.0)         
+        newFrame.origin.x = max( min(newFrame.origin.x + translation.x, self.bounds.maxX - paddle.bounds.size.width), 0.0)
         for ball in balls {
             if CGRectContainsRect(newFrame, ball.frame) {
                 return
             }
         }
         paddle.frame = newFrame;
-        updatePaddleBoundary()
+        behavior.addBoundary(UIBezierPath(ovalInRect: paddle.frame), named: Constants.paddleBoundaryId)
     }
     
- func resetPaddlePosition() {
-       paddle.frame.size = paddleSize
-       if !CGRectContainsRect(self.bounds, paddle.frame) {
+    private func resetPaddleInCenter(){
+        paddle.center = CGPointZero
+        resetPaddlePosition()
+    }
+    
+    private func resetPaddlePosition() {
+        paddle.frame.size = paddleSize
+        if !CGRectContainsRect(self.bounds, paddle.frame) {
             paddle.center = CGPoint(x: self.bounds.midX, y: self.bounds.maxY - paddle.bounds.height - Constants.PaddleBottomMargin)
         } else {
             paddle.center = CGPoint(x: paddle.center.x, y: self.bounds.maxY - paddle.bounds.height - Constants.PaddleBottomMargin)
         }
-        
-        updatePaddleBoundary()
-    }
-    
-    func updatePaddleBoundary() {
         behavior.addBoundary(UIBezierPath(ovalInRect: paddle.frame), named: Constants.paddleBoundaryId)
     }
-
+    
+    struct Constants {
+        static let selfBoundaryId = "selfBoundary"
+        static let paddleBoundaryId = "paddleBoundary"
+        static let BallSize = CGSize(width: 20, height: 20)
+        static let BallSpacing: CGFloat = 3
+        
+        static let PaddleBottomMargin: CGFloat = 10.0
+        static let PaddleHeight: Int = 15
+        static let PaddleColor = UIColor.whiteColor()
+        static let PaddleWidthPercentage:Int = 33
+        
+        
+        static let BrickHeight: CGFloat = 20.0
+        static let BrickSpacing: CGFloat = 5.0
+        static let BricksTopSpacing: CGFloat = 20.0
+        static let BrickSideSpacing: CGFloat = 10.0
+        
+        static let minBallLaunchAngle = 210
+        static let maxBallLaunchAngle = 330
+        static let minLaunchSpeed = CGFloat(0.2)
+        static let maxLaunchSpeed = CGFloat(0.5)
+        static let pushSpeed = CGFloat(0.05)
+        
+    }
 }
