@@ -16,7 +16,8 @@ class BreakoutViewController: UIViewController, BreakoutCollisionBehaviorDelegat
             breakoutView.initialize()
             breakoutView.paddleWidthPercentage = settings.paddleWidth
             breakoutView.level = settings.level
-            breakoutView.launchSpeedModifier = settings.ballSpeedModifier     }
+            breakoutView.launchSpeedModifier = settings.ballSpeedModifier    
+        }
     }
     
     @IBOutlet var ballsLeftLabel: UILabel!
@@ -42,18 +43,20 @@ class BreakoutViewController: UIViewController, BreakoutCollisionBehaviorDelegat
     
     // MARK: - LIFE CYCLE
     
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        breakoutView.behavior.breakoutCollisionDelegate = self
-        breakoutView.addGestureRecognizer( UITapGestureRecognizer(target: self, action: "launchBall:") )
-        breakoutView.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: "panPaddle:"))
-        motionManager.accelerometerUpdateInterval = 0.01
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
         
+        // Переустановка при автовращении
+        if gameViewSizeChanged {
+            gameViewSizeChanged = false
+            breakoutView.resetLayout()
+            
+        }
     }
-    
     
     override func viewWillAppear(animated: Bool) {
         super.viewWillAppear(animated)
+        
         loadSettings()
         
         //  Restart мячиков при возвращени на закладку Breakout игры
@@ -76,19 +79,42 @@ class BreakoutViewController: UIViewController, BreakoutCollisionBehaviorDelegat
         gameViewSizeChanged = true
     }
     
-    
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        breakoutView.behavior.breakoutCollisionDelegate = self
+        breakoutView.addGestureRecognizer( UITapGestureRecognizer(target: self, action: "launchBall:"))
+        breakoutView.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: "panPaddle:"))
+        motionManager.accelerometerUpdateInterval = 0.01
         
-        // Переустановка при вращении
-        if gameViewSizeChanged {
-            gameViewSizeChanged = false
-            breakoutView.resetLayout()
-            
+    }
+
+    // MARK: - GESTURES
+
+    //---- ОБРАБОТКА ЖЕСТОВ
+    
+    func panPaddle(gesture: UIPanGestureRecognizer) {
+        switch gesture.state {
+        case .Ended: fallthrough
+        case .Changed:
+            breakoutView.translatePaddle(gesture.translationInView(breakoutView))
+            gesture.setTranslation(CGPointZero, inView: breakoutView)
+        default: break
+        }
+    }
+
+    func launchBall(gesture: UITapGestureRecognizer){
+        if gesture.state == .Ended {
+            if ballsUsed < maxBalls {
+                ballsUsed++;
+                breakoutView.addBall()
+            } else {
+                breakoutView.pushBalls()
+            }
         }
     }
     
-    // MARK: - LoAD SEIITINGS
+
+    // MARK: - LOAD SEIITINGS
     
     private func loadSettings() {
         
@@ -98,7 +124,8 @@ class BreakoutViewController: UIViewController, BreakoutCollisionBehaviorDelegat
             if motionManager.accelerometerAvailable {
                 motionManager.startAccelerometerUpdatesToQueue(NSOperationQueue.mainQueue())
                     { (data, error) -> Void in
-                        self.breakoutView.translatePaddle( CGPoint(x: Const.maxPaddleSpeed * data!.acceleration.x, y: 0.0) )
+                        self.breakoutView.translatePaddle(
+                            CGPoint(x: Const.maxPaddleSpeed * data!.acceleration.x, y: 0.0))
                 }
             }
         }
@@ -167,29 +194,7 @@ class BreakoutViewController: UIViewController, BreakoutCollisionBehaviorDelegat
         breakoutView.pushBalls()
     }
     
-    // MARK: - GESTURES
     
-    //---- ОБРАБОТКА ЖЕСТОВ
-    func launchBall(gesture: UITapGestureRecognizer){
-        if gesture.state == .Ended {
-            if ballsUsed < maxBalls {
-                ballsUsed++;
-                breakoutView.addBall()
-            } else {
-                breakoutView.pushBalls()
-            }
-        }
-    }
-    
-    func panPaddle(gesture: UIPanGestureRecognizer) {
-        switch gesture.state {
-        case .Ended: fallthrough
-        case .Changed:
-            breakoutView.translatePaddle(gesture.translationInView(breakoutView))
-            gesture.setTranslation(CGPointZero, inView: breakoutView)
-        default: break
-        }
-    }
     
     private struct Const {
         static let gameOverTitle = "Game over!"

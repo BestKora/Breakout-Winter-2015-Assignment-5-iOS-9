@@ -27,7 +27,6 @@ class Settings {
     
     private let userDefaults = NSUserDefaults.standardUserDefaults()
     
-     
     // gameplay settings
     
     var level: [Array<Int>] {
@@ -36,7 +35,7 @@ class Settings {
     }
     
     var ballSpeedModifier: Float {
-        get { return userDefaults.objectForKey(Keys.BallSpeedModifier) as?  Float ?? Defaults.BallSpeedModifier}
+        get { return userDefaults.objectForKey(Keys.BallSpeedModifier) as? Float ?? Defaults.BallSpeedModifier}
         set { userDefaults.setFloat(newValue, forKey: Keys.BallSpeedModifier) }
     }
     

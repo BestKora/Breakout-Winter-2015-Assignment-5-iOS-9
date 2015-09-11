@@ -17,6 +17,7 @@ class BreakoutView: UIView {
     var behavior = BreakoutBehavior()
     
     var balls: [BallView]  {return self.behavior.balls}
+    
     var bricks =  [Int:BrickView]()
     
     lazy var paddle: PaddleView = {
@@ -66,6 +67,12 @@ class BreakoutView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         resetPaddlePosition()
+        // Помещаем balls обратно в breakoutView после автовращения
+        for ball in balls {
+            if !CGRectContainsRect(self.bounds, ball.frame) {
+                placeBallBack(ball)
+            }
+        }
     }
     
     func resetLayout() {
@@ -75,18 +82,7 @@ class BreakoutView: UIView {
         
         resetPaddlePosition()
         resetBricks()
-        // Помещаем balls обратно в breakoutView после вращения со скоростью вверх
-        for ball in balls {
-            let linVeloc = behavior.ballBehavior.linearVelocityForItem(ball)
-            if linVeloc.y > CGFloat (0) {
-
-                behavior.ballBehavior.addLinearVelocity(CGPoint(x: -linVeloc.x , y: -linVeloc.y ), forItem: ball)
-                behavior.ballBehavior.addLinearVelocity(CGPoint(x: linVeloc.x, y: -linVeloc.y ), forItem: ball)
- 
-            }
-                placeBallInCenter(ball)
-        }
-    }
+          }
     
     func reset(){
         removeBricks()
@@ -121,10 +117,10 @@ class BreakoutView: UIView {
         }
     }
     
-    private func placeBallInCenter(ball: UIView) {
+    private func placeBallBack(ball: UIView) {
  
         ball.center = CGPoint(x: self.paddle.center.x,
-                              y: self.paddle.center.y - paddle.bounds.height * 2)
+                              y: self.paddle.center.y - paddle.bounds.height * 3)
         animator.updateItemUsingCurrentState(ball)
     }
     
@@ -152,12 +148,13 @@ class BreakoutView: UIView {
     private func createBricks() {
         if let arrangement = level {
             
-            if arrangement.count == 0 { return }    // no строк
-            if arrangement[0].count == 0 { return } // no столбцов
+            if arrangement.count == 0 { return }    // нет строк
+            if arrangement[0].count == 0 { return } // нет столбцов
             
             let rows = arrangement.count
             let columns = arrangement[0].count
-            let width = (self.bounds.size.width - 2 * Constants.BrickSpacing) / CGFloat(columns)
+            let width = (self.bounds.size.width -
+                             2 * Constants.BrickSpacing) / CGFloat(columns)
             
             for row in 0 ..< rows {
                 let columns = arrangement[row].count
@@ -165,7 +162,9 @@ class BreakoutView: UIView {
                     if arrangement[row][column] == 0 { continue }
                     
                     let x = Constants.BrickSpacing + CGFloat(column) * width
-                    let y = Constants.BricksTopSpacing + CGFloat(row) * Constants.BrickHeight + CGFloat(row) * Constants.BrickSpacing * 2
+                    let y = Constants.BricksTopSpacing +
+                            CGFloat(row) * Constants.BrickHeight +
+                            CGFloat(row) * Constants.BrickSpacing * 2
                     let hue = CGFloat(row) / CGFloat(rows)
                     createBrick(width, x: x, y: y, hue: hue)
                 }
@@ -174,14 +173,17 @@ class BreakoutView: UIView {
     }
     
     private func createBrick(width: CGFloat, x: CGFloat, y: CGFloat, hue: CGFloat) {
-        var frame = CGRect(origin: CGPoint(x: x, y: y), size: CGSize(width: width, height: Constants.BrickHeight))
+        var frame = CGRect(origin: CGPoint(x: x, y: y),
+                             size: CGSize(width: width, height: Constants.BrickHeight))
         frame = CGRectInset(frame, Constants.BrickSpacing, 0)
         
         let brick = BrickView(frame: frame, hue: hue)
         bricks[bricks.count] = brick
         
         addSubview(brick)
-        behavior.addBoundary( UIBezierPath(roundedRect: brick.frame, cornerRadius: brick.layer.cornerRadius), named: (bricks.count - 1) )
+        behavior.addBoundary( UIBezierPath(roundedRect: brick.frame,
+                                          cornerRadius: brick.layer.cornerRadius),
+                              named: (bricks.count - 1) )
     }
     
     
@@ -189,7 +191,9 @@ class BreakoutView: UIView {
         behavior.removeBoundary(brickIndex)
         
         if let brick = bricks[brickIndex] {
-            UIView.transitionWithView(brick, duration: 0.3, options: .TransitionFlipFromBottom, animations: {
+            UIView.transitionWithView(brick, duration: 0.3,
+                                              options: .TransitionFlipFromBottom,
+                                           animations: {
                 brick.alpha = 0.5
                 }, completion: { (success) -> Void in
                     UIView.animateWithDuration(1.0, animations: {
@@ -258,11 +262,14 @@ class BreakoutView: UIView {
     private func resetPaddlePosition() {
         paddle.frame.size = paddleSize
         if !CGRectContainsRect(self.bounds, paddle.frame) {
-            paddle.center = CGPoint(x: self.bounds.midX, y: self.bounds.maxY - paddle.bounds.height - Constants.PaddleBottomMargin)
+            paddle.center = CGPoint(x: self.bounds.midX,
+                y: self.bounds.maxY - paddle.bounds.height - Constants.PaddleBottomMargin)
         } else {
-            paddle.center = CGPoint(x: paddle.center.x, y: self.bounds.maxY - paddle.bounds.height - Constants.PaddleBottomMargin)
+            paddle.center = CGPoint(x: paddle.center.x,
+                y: self.bounds.maxY - paddle.bounds.height - Constants.PaddleBottomMargin)
         }
-        behavior.addBoundary(UIBezierPath(ovalInRect: paddle.frame), named: Constants.paddleBoundaryId)
+        behavior.addBoundary(UIBezierPath(ovalInRect: paddle.frame),
+                             named: Constants.paddleBoundaryId)
     }
     
     struct Constants {

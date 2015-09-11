@@ -2,9 +2,6 @@
 //  AppDelegate.swift
 //  Breakout
 //
-//  Created by Tatiana Kornilova on 9/7/15.
-//  Copyright © 2015 Tatiana Kornilova. All rights reserved.
-//
 
 import UIKit
 import CoreMotion
@@ -16,7 +13,5 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     struct Motion {
         static let Manager = CMMotionManager()
     }
-
-
 }
 
